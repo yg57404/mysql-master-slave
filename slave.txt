@@ -1,0 +1,73 @@
+ON Master:
+In my.cnf, do the following and restart mysql
+
+Path:- vim  /etc/my.cnf.d/server.cnf  (ex:- 172.50.3.76)
+[mysqld]
+server-id=1
+binlog-format   = mixed
+log-bin=mysql-bin
+innodb_flush_log_at_trx_commit=1
+sync_binlog=1
+log_output=FILE
+expire_logs_days=3
+
+
+Login in mysql and run following commands
+# create replication user 
+CREATE USER 'replicant_user'@'%' IDENTIFIED BY 'lXzsdaas^pFLgem8@9';
+GRANT REPLICATION SLAVE ON *.* TO 'replicant_user'@'%' ;
+
+# check master poistion
+MariaDB [(none)]> show master status;
+
+Output similar to:
++------------------+-----------+--------------+------------------+
+| File             | Position  | Binlog_Do_DB | Binlog_Ignore_DB |
++------------------+-----------+--------------+------------------+
+| mysql-bin.003230 | 169409255 |              |                  |
++------------------+-----------+--------------+------------------+
+1 row in set (0.00 sec)
+
+IN above output: mysql-bin.003230 is MASTER_LOG_FILE and 169409255 is MASTER_LOG_POS
+
+# create AMI of master machine
+On Slave machine
+In my.cnf, do the following and restart mysql
+
+server-id               = 101
+relay-log               = mysql-relay-bin
+log-slave-updates = 1
+read-only               = 1
+slave-skip-errors               = 1062,1032,1022
+replicate-ignore-db                     = mysql
+
+
+Login in mysql and run following commands
+
+RESET SLAVE ;
+
+# Set position
+CHANGE MASTER TO MASTER_HOST='auroranew.internal-gaadi.net',MASTER_USER='replicant_user',MASTER_PASSWORD='lXzsdaas^pFLgem8@9', MASTER_LOG_FILE='mysql-bin-changelog.003622', MASTER_LOG_POS=37318131;
+
+#in above command, change MASTER_HOST, MASTER_LOG_FILE, MASTER_LOG_POS
+
+
+
+START SLAVE ;
+
+show slave status \G
+# check second_behind master . Should be 0
+        Seconds_Behind_Master: 0
+
+
+
+
+
+
+
+
+
+
+
+
+
